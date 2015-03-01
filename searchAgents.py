@@ -10,6 +10,7 @@
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
+from util import manhattanDistance
 
 
 """
@@ -408,6 +409,8 @@ class FoodSearchProblem:
         self.startingGameState = startingGameState
         self._expanded = 0 # DO NOT CHANGE
         self.heuristicInfo = {} # A dictionary for the heuristic to store information
+        
+        self.heuristicInfo["distances"] = {}
 
     def getStartState(self):
         return self.start
@@ -479,7 +482,109 @@ def foodHeuristic(state, problem):
     """
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
-    return 0
+    
+    # Get the remaining corners that have not yet been eaten.
+    remainingFoodDots = foodGrid.asList()
+    
+    useMST = False
+    
+    if not useMST:
+        # Get the distances to the remaining corners
+        
+        ### Attempt 1: Decent computing time, 9551 nodes expanded
+        # distancesToFoodDots = [util.manhattanDistance(position, foodDot) for foodDot in remainingFoodDots] 
+        ### Attempt 2: Takes a while, but only 4137 nodes expanded
+        # distancesToFoodDots = [mazeDistance(position, foodDot, problem.startingGameState) for foodDot in remainingFoodDots] 
+        ### Attempt 3: Much faster, still 4137 nodes expanded and cost (MxN)^2 in space.
+        distancesToFoodDots = [getAndCacheMazeDistance(position, foodDot, problem.startingGameState, problem.heuristicInfo) for foodDot in remainingFoodDots]
+        
+        # And choose the maximum distance.
+        maxDistance = max(distancesToFoodDots) if len(distancesToFoodDots) > 0 else 0
+        if problem.isGoalState(state) and maxDistance != 0:
+            print "Error reached goal, but heuristic is non 0!! ", maxDistance
+            
+        return maxDistance
+    else:
+        # Quite fast. On par, time complexity wise with Attempt 3 using getAndCacheMazeDistance, however, doesn't use (MxN)^2 space.
+        # Also, expands slightly more nodes than Attempt 3.
+        mst_foodDots = [FoodDot(foodDot) for foodDot in remainingFoodDots]
+        mst_edge_list = compute_mst(mst_foodDots)
+        
+        distanceList = [(mst_dist(b0,b1), b0, b1) for b0,b1 in mst_edge_list]
+        distanceList.sort()
+        mst_distances = [d for d,b0,b1 in distanceList]
+
+        distancesToFoodDots = [util.manhattanDistance(position, foodDot) for foodDot in remainingFoodDots] 
+        minDist = min(distancesToFoodDots) if len(distancesToFoodDots) > 0 else 0
+
+        return sum(mst_distances)+minDist
+
+def getAndCacheMazeDistance(pointFrom, pointTo, gameState, heuristicInfo):
+    # gameState is immutable during the solution planning. 
+    # Create a cache based on pointFrom and pointTo. The max-cache size should be no more than (MxN)^2.
+    # Not too familiar with Python, but I assume that it can create a good hash out of a (2x2)-tuple of integers.
+    cachedTuple = pointFrom, pointTo
+    cache = heuristicInfo["distances"]
+    if cachedTuple in cache:
+        return cache[cachedTuple]
+    
+    distance = mazeDistance(pointFrom, pointTo, gameState)
+    cache[cachedTuple] = distance
+    return distance
+
+class FoodDot:
+    def __init__(self, position):
+        self.position = position
+        self.d = 0.0
+        self.pred = None
+     
+    def __repr__(self):
+        return str(self.position)   
+            
+def mst_dist(b1,b2):
+    """ Return distance between balls b1 and b2. """
+    return (util.manhattanDistance(b1.position, b2.position))
+
+def compute_mst(balls):
+    """ Compute MST of given set of balls. """
+    # use prim's algorithm
+    mst_edge_list = mst_prim(balls)
+    return mst_edge_list
+
+def mst_prim(balls):
+    """ 
+    Find mst of set of balls with Prim's algorithm.
+    Return set of edges.
+    """
+    if len(balls)==0:
+        return []
+
+    mst_edge_list = []
+
+    b0 = balls[0]
+    Q = balls[1:]
+    for ball in Q: 
+        ball.d = mst_dist(ball, b0)
+        ball.pred = b0
+
+    while Q != []:
+        min_d = 1e20
+        for ball in Q:
+            if ball.d < min_d:
+                min_d = ball.d
+                closest_ball = ball
+        Q.remove(closest_ball)
+        b0 = closest_ball
+        b1 = closest_ball.pred
+        mst_edge_list.append((b0, b1))
+        for ball in Q:
+            d = mst_dist(ball, closest_ball)
+            if d < ball.d:
+                ball.d = d
+                ball.pred = closest_ball
+
+    return mst_edge_list
+
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
@@ -511,6 +616,8 @@ class ClosestDotSearchAgent(SearchAgent):
 
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
+
+
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """
