@@ -185,9 +185,10 @@ class AStarNode(UCSNode):
 def genericGraphSearch(problem, fringe, strategicPop, nodeFactory, isFringeQueue):
     from sets import Set
     
+    startState = nodeFactory(None, (problem.getStartState(), None, 0))
+    fringe.push(startState)
     closed = Set([])
-    fringe.push(nodeFactory(None, (problem.getStartState(), None, 0)))
-    
+
     while True:
         if fringe.isEmpty():
             return None
@@ -197,7 +198,6 @@ def genericGraphSearch(problem, fringe, strategicPop, nodeFactory, isFringeQueue
         if (problem.isGoalState(node.getState())):
             return node
         
-        # print "Expanding node with state ", node.getState()," at "+ str(node.depth) + " : " + str(node.totalCost)
         if node.getState() not in closed:
             closed.add(node.getState())
             successors = problem.getSuccessors(node.getState())

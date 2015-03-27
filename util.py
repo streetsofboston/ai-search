@@ -651,3 +651,48 @@ def unmutePrint():
     sys.stdout = _ORIGINAL_STDOUT
     #sys.stderr = _ORIGINAL_STDERR
 
+
+TR = {}
+TR['CclA'] = (1, 1)
+#TR['CclB'] = (0.4, -1)
+#TR['CccA'] = (0.4, -1)
+TR['CccB'] = (1, 1)
+        
+def chance(fromState, action, toState):
+    key = fromState + action + toState
+    return TR[key][0] if key in TR else 0
+
+def reward(fromState, action, toState):
+    key = fromState + action + toState
+    return TR[key][1] if key in TR else 0
+
+def ssum(toState, action, gamma, vk):
+    endStates = ['A', 'B', 'C']
+    chances = [chance(toState, action, endState) * (reward(toState, action, endState) + gamma * vk[endState]) for endState in endStates]
+    print action + " --- " + str(chances) + " -> " + str(sum(chances))
+    return sum(chances)
+
+if __name__ == '__main__':
+    """
+    The main function called when pacman.py is run
+    """
+    actions = ['cl', 'cc']
+    toState = 'C'
+    gamma = 0.5
+    vk = {}
+    
+    vk['A'] = 0.42
+    vk['B'] = 1.62
+    vk['C'] = 1.8
+    
+    list = [ssum(toState, a, gamma, vk) for a in actions]
+    print str(list) + " -> " + str(max(list))
+    print " ----------------------- "
+    vk['A'] = 0.852
+    vk['B'] = 2.148
+    vk['C'] = 2.074
+    
+    list = [ssum(toState, a, gamma, vk) for a in actions]
+    print str(list) + " -> " + str(max(list))
+    pass
+
